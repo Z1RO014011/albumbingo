@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Album Bingo</title>
+    <style>
+      :root {
+        --bg: #f5f0e3;
+        --bg-soft: rgba(255, 250, 240, 0.92);
+        --panel: #fffaf0;
+        --panel-border: #111111;
+        --text: #101010;
+        --muted: #5d5751;
+        --ink: #101010;
+        --board: #fffdf8;
+        --cell-border: #171717;
+        --accent: #ffe347;
+        --accent-soft: #fff1a6;
+        --accent-warm: #ffb31a;
+        --accent-pink: #ff4fa4;
+        --accent-green: #2dc98a;
+        --shadow: 14px 14px 0 rgba(16, 16, 16, 0.14);
+        --radius-xl: 36px;
+        --radius-lg: 26px;
+        --radius-md: 20px;
+        --radius-sm: 16px;
+        --transition: 180ms ease;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Avenir Next", "Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(255, 227, 71, 0.52), transparent 28%),
+          radial-gradient(circle at 85% 8%, rgba(255, 79, 164, 0.12), transparent 18%),
+          linear-gradient(180deg, #f8f2e8 0%, #efe8dd 100%);
+        overflow-x: hidden;
+      }
+
+      body.modal-open {
+        overflow: hidden;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .app-shell {
+        position: relative;
+        min-height: 100vh;
+        isolation: isolate;
+      }
+
+      .background-collage {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-columns: repeat(6, minmax(110px, 1fr));
+        gap: 18px;
+        padding: 22px;
+        opacity: 0.13;
+        filter: grayscale(0.1) blur(1px) saturate(0.75);
+        transform: scale(1.04);
+        pointer-events: none;
+      }
+
+      .background-cover {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        aspect-ratio: 1;
+        border: 2px solid rgba(17, 17, 17, 0.1);
+        box-shadow: 0 10px 28px rgba(17, 17, 17, 0.08);
+      }
+
+      .background-cover:nth-child(odd) {
+        transform: translateY(26px);
+      }
+
+      .background-cover img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+      }
+
+      .app {
+        position: relative;
+        z-index: 1;
+        min-height: 100vh;
+        display: grid;
+        justify-content: center;
+        padding: 32px;
+      }
+
+      .board-column {
+        width: min(920px, 100%);
+      }
+
+      .hero-copy {
+        margin: 0 0 24px;
+        padding: 0 6px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        margin: 0 0 14px;
+        padding: 8px 14px;
+        border: 2px solid var(--panel-border);
+        border-radius: 999px;
+        background: var(--accent);
+        color: var(--ink);
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(2.5rem, 5vw, 4.5rem);
+        line-height: 0.92;
+        letter-spacing: -0.05em;
+        color: rgba(16, 16, 16, 0.14);
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.52),
+          rgba(16, 16, 16, 0.04)
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        -webkit-text-stroke: 1.4px rgba(16, 16, 16, 0.9);
+      }
+
+      .hero-copy p:last-child {
+        margin: 14px 0 0;
+        max-width: 40rem;
+        color: rgba(16, 16, 16, 0.72);
+        font-size: 1rem;
+        line-height: 1.7;
+      }
+
+      .board-panel {
+        position: relative;
+        background: rgba(255, 250, 240, 0.96);
+        border: 3px solid var(--panel-border);
+        border-radius: 38px;
+        box-shadow: var(--shadow);
+        color: var(--ink);
+        padding: 24px 24px 26px;
+        overflow: hidden;
+      }
+
+      .board-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 94px;
+        background:
+          linear-gradient(90deg, rgba(255, 227, 71, 0.94), rgba(255, 194, 35, 0.92));
+        z-index: 0;
+      }
+
+      .board-toolbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .board-title {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .board-title h2 {
+        margin: 0;
+        font-size: 1.7rem;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: rgba(16, 16, 16, 0.22);
+        -webkit-text-stroke: 1px rgba(16, 16, 16, 0.88);
+      }
+
+      .board-title p {
+        margin: 0;
+        color: rgba(16, 16, 16, 0.66);
+        font-size: 0.94rem;
+      }
+
+      .board-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 2px solid var(--panel-border);
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-weight: 800;
+        color: var(--ink);
+        background: rgba(255, 250, 240, 0.9);
+      }
+
+      .bingo-letters {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+        padding: 0 2px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .bingo-letters span {
+        display: grid;
+        place-items: center;
+        min-height: 58px;
+        border: 2px solid var(--panel-border);
+        border-radius: 18px;
+        background: rgba(255, 250, 240, 0.9);
+        font-size: 1.6rem;
+        font-weight: 900;
+        letter-spacing: 0.22em;
+        padding-left: 0.22em;
+        color: rgba(16, 16, 16, 0.18);
+        -webkit-text-stroke: 1px rgba(16, 16, 16, 0.92);
+      }
+
+      .bingo-board {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        background: transparent;
+        position: relative;
+        z-index: 1;
+      }
+
+      .board-cell {
+        position: relative;
+        min-height: 120px;
+        background: var(--board);
+        border: 2px solid var(--cell-border);
+        border-radius: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 14px 12px;
+        cursor: pointer;
+        transition:
+          transform var(--transition),
+          background var(--transition),
+          box-shadow var(--transition),
+          border-color var(--transition);
+      }
+
+      .board-cell:hover {
+        transform: translateY(-3px);
+        background: #fff7d5;
+        box-shadow: 0 10px 0 rgba(17, 17, 17, 0.08);
+      }
+
+      .board-cell:focus-visible {
+        outline: none;
+        box-shadow:
+          0 0 0 4px rgba(255, 227, 71, 0.75),
+          0 10px 0 rgba(17, 17, 17, 0.08);
+      }
+
+      .board-cell.is-active {
+        background: #fff1a6;
+        box-shadow:
+          0 0 0 4px rgba(255, 227, 71, 0.9),
+          0 14px 0 rgba(17, 17, 17, 0.12);
+        z-index: 1;
+      }
+
+      .board-cell.is-winning {
+        box-shadow:
+          0 0 0 4px rgba(255, 79, 164, 0.9),
+          0 12px 0 rgba(255, 79, 164, 0.12);
+        z-index: 1;
+      }
+
+      .board-cell.is-filled {
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .clue-content {
+        display: grid;
+        gap: 8px;
+        justify-items: center;
+      }
+
+      .clue-label {
+        font-size: 1rem;
+        font-weight: 800;
+        line-height: 1.28;
+      }
+
+      .clue-hint {
+        color: rgba(16, 16, 16, 0.46);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .placed-cover {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        overflow: hidden;
+      }
+
+      .placed-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .placed-overlay {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(180deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.78) 100%);
+      }
+
+      .placed-meta {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        display: grid;
+        gap: 5px;
+        text-align: left;
+        color: #fff;
+      }
+
+      .placed-meta strong {
+        font-size: 0.73rem;
+        line-height: 1.2;
+      }
+
+      .placed-meta span,
+      .placed-meta small {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.63rem;
+      }
+
+      .cell-clear {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 2;
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+        background: rgba(16, 16, 16, 0.85);
+        color: white;
+        cursor: pointer;
+        transition: transform var(--transition), background var(--transition);
+      }
+
+      .cell-clear:hover {
+        transform: scale(1.08);
+        background: rgba(16, 16, 16, 0.88);
+      }
+
+      .board-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .action-button,
+      .ghost-button,
+      .search-button,
+      .modal-close {
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+        transition:
+          transform var(--transition),
+          box-shadow var(--transition),
+          background var(--transition);
+      }
+
+      .action-button:hover,
+      .ghost-button:hover,
+      .search-button:hover,
+      .modal-close:hover {
+        transform: translateY(-1px);
+      }
+
+      .action-button {
+        padding: 12px 18px;
+        border: 2px solid var(--panel-border);
+        color: var(--ink);
+        font-weight: 800;
+        background: var(--accent);
+        box-shadow: 0 8px 0 rgba(17, 17, 17, 0.12);
+      }
+
+      .ghost-button {
+        padding: 12px 18px;
+        border: 2px solid var(--panel-border);
+        color: var(--ink);
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.8);
+      }
+
+      .status-bar {
+        margin-top: 18px;
+        min-height: 44px;
+        border-radius: 18px;
+        padding: 12px 14px;
+        border: 2px solid var(--panel-border);
+        background: rgba(255, 255, 255, 0.72);
+        color: rgba(16, 16, 16, 0.72);
+        line-height: 1.5;
+      }
+
+      .bingo-banner {
+        position: absolute;
+        top: -14px;
+        right: 18px;
+        padding: 12px 18px;
+        border-radius: 999px;
+        border: 2px solid var(--panel-border);
+        background: var(--accent);
+        color: var(--ink);
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        box-shadow: 0 10px 0 rgba(17, 17, 17, 0.12);
+        animation: pulse 1s ease-in-out infinite alternate;
+      }
+
+      .search-modal[hidden] {
+        display: none;
+      }
+
+      .search-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 6;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .search-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(180deg, rgba(20, 18, 15, 0.34), rgba(20, 18, 15, 0.56));
+        backdrop-filter: blur(14px);
+      }
+
+      .search-modal-dialog {
+        position: relative;
+        width: min(960px, 100%);
+        max-height: min(86vh, 960px);
+        overflow: auto;
+        border-radius: var(--radius-xl);
+        border: 3px solid var(--panel-border);
+        background:
+          linear-gradient(180deg, rgba(255, 227, 71, 0.96) 0 108px, rgba(255, 250, 240, 0.98) 108px 100%);
+        box-shadow: var(--shadow);
+        padding: 24px;
+        animation: modalIn 220ms ease;
+      }
+
+      .search-panel-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .modal-kicker {
+        margin: 0 0 6px;
+        color: rgba(16, 16, 16, 0.6);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        font-weight: 800;
+      }
+
+      .search-panel-header h3 {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 1.9rem;
+        letter-spacing: -0.03em;
+        color: var(--ink);
+      }
+
+      .search-panel-header p {
+        margin: 10px 0 0;
+        color: rgba(16, 16, 16, 0.72);
+        line-height: 1.6;
+        max-width: 38rem;
+      }
+
+      .modal-close {
+        width: 42px;
+        height: 42px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        border: 2px solid var(--panel-border);
+        background: rgba(255, 255, 255, 0.88);
+        color: var(--ink);
+        font-size: 1.4rem;
+      }
+
+      .search-context {
+        margin-top: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .prompt-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 2px solid var(--panel-border);
+        border-radius: 999px;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.88);
+        color: rgba(16, 16, 16, 0.9);
+      }
+
+      .prompt-pill strong {
+        color: var(--ink);
+      }
+
+      .search-form {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .search-input {
+        width: 100%;
+        border: 2px solid var(--panel-border);
+        border-radius: 18px;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--ink);
+        outline: none;
+        transition: border-color var(--transition), background var(--transition);
+      }
+
+      .search-input:focus {
+        border-color: var(--panel-border);
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(255, 227, 71, 0.45);
+      }
+
+      .search-button {
+        padding: 12px 20px;
+        border: 2px solid var(--panel-border);
+        color: white;
+        font-weight: 800;
+        background: var(--ink);
+      }
+
+      .result-meta {
+        margin-top: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .result-meta strong {
+        font-size: 0.95rem;
+      }
+
+      .result-meta span {
+        color: rgba(16, 16, 16, 0.55);
+        font-size: 0.88rem;
+      }
+
+      .results-grid {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .result-card {
+        position: relative;
+        display: grid;
+        gap: 10px;
+        width: 100%;
+        border: 2px solid var(--panel-border);
+        border-radius: 26px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.9);
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition:
+          transform var(--transition),
+          border-color var(--transition),
+          background var(--transition),
+          box-shadow var(--transition);
+      }
+
+      .result-card:hover {
+        transform: translateY(-3px);
+        background: #ffffff;
+        box-shadow: 0 12px 0 rgba(17, 17, 17, 0.1);
+      }
+
+      .result-card:focus-visible {
+        outline: none;
+        box-shadow:
+          0 0 0 4px rgba(255, 227, 71, 0.75),
+          0 12px 0 rgba(17, 17, 17, 0.1);
+      }
+
+      .result-card img {
+        width: 100%;
+        display: block;
+        aspect-ratio: 1;
+        object-fit: cover;
+        border-radius: 16px;
+      }
+
+      .result-card strong {
+        font-size: 0.95rem;
+        line-height: 1.3;
+      }
+
+      .result-card span {
+        color: rgba(16, 16, 16, 0.64);
+        font-size: 0.82rem;
+      }
+
+      .empty-state {
+        margin-top: 14px;
+        padding: 18px;
+        border-radius: 20px;
+        border: 2px dashed rgba(17, 17, 17, 0.4);
+        background: rgba(255, 255, 255, 0.6);
+        color: rgba(16, 16, 16, 0.65);
+        text-align: center;
+      }
+
+      @keyframes pulse {
+        from {
+          transform: translateY(0) scale(1);
+          filter: saturate(1);
+        }
+
+        to {
+          transform: translateY(-2px) scale(1.03);
+          filter: saturate(1.25);
+        }
+      }
+
+      @keyframes modalIn {
+        from {
+          opacity: 0;
+          transform: translateY(18px) scale(0.98);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @media (max-width: 960px) {
+        .results-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 760px) {
+        .app {
+          padding: 20px 14px 28px;
+        }
+
+        .background-collage {
+          grid-template-columns: repeat(4, minmax(76px, 1fr));
+          gap: 12px;
+          padding: 14px;
+        }
+
+        .board-panel,
+        .search-modal-dialog {
+          border-radius: 24px;
+        }
+
+        .board-panel {
+          padding: 16px 16px 18px;
+        }
+
+        .board-toolbar,
+        .search-panel-header,
+        .result-meta {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .bingo-letters span {
+          font-size: 1.35rem;
+        }
+
+        .board-cell {
+          min-height: 92px;
+          padding: 9px;
+        }
+
+        .clue-label {
+          font-size: 0.86rem;
+        }
+
+        .clue-hint {
+          font-size: 0.74rem;
+        }
+
+        .search-modal {
+          padding: 12px;
+        }
+
+        .search-modal-dialog {
+          padding: 18px;
+        }
+
+        .search-form {
+          grid-template-columns: 1fr;
+        }
+
+        .results-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <div class="background-collage" id="background-collage"></div>
+      <main class="app">
+        <section class="board-column">
+          <div class="hero-copy">
+            <p class="eyebrow">Tap A Clue, Find A Cover</p>
+            <h1>Album Bingo</h1>
+            <p>
+              随机生成提示词，先点开一个格子，再在弹层里搜索专辑并放进去。没有标准答案，重点是考音乐储备和封面联想。连成横线、竖线或对角线，就会触发
+              BINGO。
+            </p>
+          </div>
+
+          <div class="board-panel">
+            <div class="board-toolbar">
+              <div class="board-title">
+                <h2>音乐封面 Bingo</h2>
+                <p>Mixed Pack · 视觉词更多，主观联想优先。</p>
+              </div>
+              <div class="board-badge">5x5 Mixed</div>
+            </div>
+
+            <div class="bingo-letters" aria-hidden="true">
+              <span>B</span>
+              <span>I</span>
+              <span>N</span>
+              <span>G</span>
+              <span>O</span>
+            </div>
+
+            <div class="bingo-board" id="bingo-board" aria-label="Album Bingo Board"></div>
+
+            <div class="board-footer">
+              <button class="ghost-button" id="restart-button" type="button">
+                重新开始
+              </button>
+              <button class="action-button" id="randomize-button" type="button">
+                随机生成卡片
+              </button>
+            </div>
+
+            <div class="status-bar" id="status-bar" aria-live="polite"></div>
+            <div class="bingo-banner" id="bingo-banner" hidden>BINGO!</div>
+          </div>
+        </section>
+      </main>
+
+      <div class="search-modal" id="search-modal" hidden aria-hidden="true">
+        <div class="search-modal-backdrop" data-close-modal="true"></div>
+        <section
+          class="search-modal-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="search-modal-title"
+        >
+          <div class="search-panel-header">
+            <div>
+              <p class="modal-kicker">Choose A Cover</p>
+              <h3 id="search-modal-title">搜索专辑</h3>
+              <p>当前选中的格子会高亮显示。点一个搜索结果，就会直接放入那个格子里。</p>
+            </div>
+            <button class="modal-close" id="search-close" type="button" aria-label="关闭搜索">
+              ×
+            </button>
+          </div>
+
+          <div class="search-context">
+            <div class="prompt-pill" id="active-prompt-pill">
+              当前格子：<strong>请选择一个提示词格子</strong>
+            </div>
+          </div>
+
+          <form class="search-form" id="search-form">
+            <input
+              class="search-input"
+              id="search-input"
+              type="search"
+              placeholder="例如：Blonde / Tyler, The Creator / Frank Ocean"
+              autocomplete="off"
+            />
+            <button class="search-button" type="submit">搜索</button>
+          </form>
+
+          <div class="result-meta">
+            <strong>搜索结果</strong>
+            <span id="result-count"></span>
+          </div>
+
+          <div class="results-grid" id="results-grid"></div>
+          <div class="empty-state" id="empty-state" hidden></div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const BOARD_SIZE = 5;
+      const DEFAULT_STATUS =
+        "点一个格子，弹层搜专辑，然后选一张你觉得最贴的封面。";
+
+      function normalizeToken(value) {
+        return String(value ?? "")
+          .trim()
+          .toLowerCase()
+          .normalize("NFKD")
+          .replace(/[\u0300-\u036f]/g, "");
+      }
+
+      function uniqueList(values) {
+        return [...new Set(values.filter(Boolean))];
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function escapeSvgText(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
+      }
+
+      function createCoverDataUri(title, artist, palette) {
+        const [start, end, accent] = palette;
+        const safeTitle = escapeSvgText(title);
+        const safeArtist = escapeSvgText(artist);
+        const svg = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+            <defs>
+              <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+                <stop offset="0%" stop-color="${start}" />
+                <stop offset="100%" stop-color="${end}" />
+              </linearGradient>
+            </defs>
+            <rect width="600" height="600" fill="url(#bg)" rx="44" />
+            <circle cx="470" cy="110" r="92" fill="${accent}" opacity="0.28" />
+            <circle cx="120" cy="470" r="118" fill="#ffffff" opacity="0.1" />
+            <text x="56" y="438" fill="#ffffff" font-size="58" font-weight="700" font-family="Arial, sans-serif">${safeTitle}</text>
+            <text x="56" y="494" fill="#ffffff" font-size="28" font-weight="400" font-family="Arial, sans-serif">${safeArtist}</text>
+          </svg>
+        `;
+
+        return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+      }
+
+      function toLargeArtworkUrl(url) {
+        return String(url ?? "").replace(
+          /\/(\d+)x(\d+)bb(\.[a-z]+)$/i,
+          "/600x600bb$3"
+        );
+      }
+
+      function normalizeComparableText(value) {
+        return normalizeToken(value)
+          .replace(/&/g, " and ")
+          .replace(/[^a-z0-9\u4e00-\u9fff]+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function pickBestArtworkResult(album, results) {
+        const targetTitle = normalizeComparableText(album.title);
+        const targetArtist = normalizeComparableText(album.artist);
+
+        return (
+          results.find((item) => {
+            const candidateTitle = normalizeComparableText(
+              item?.collectionName ?? item?.trackName ?? item?.name
+            );
+            const candidateArtist = normalizeComparableText(
+              item?.artistName ?? item?.artist
+            );
+
+            return (
+              candidateTitle === targetTitle &&
+              candidateArtist === targetArtist
+            );
+          }) ?? null
+        );
+      }
+
+      function buildItunesSearchUrl(query, limit = 12, entity = "album") {
+        const term = encodeURIComponent(query.trim());
+        return `https://itunes.apple.com/search?term=${term}&media=music&entity=${entity}&limit=${limit}`;
+      }
+
+      function buildItunesLookupUrl(artistId, limit = 30) {
+        return `https://itunes.apple.com/lookup?id=${encodeURIComponent(
+          String(artistId).trim()
+        )}&entity=album&limit=${limit}`;
+      }
+
+      function createFallbackCover(
+        title,
+        artist,
+        palette = ["#4338ca", "#ec4899", "#ffffff"]
+      ) {
+        return createCoverDataUri(title, artist, palette);
+      }
+
+      const VISUAL_PROMPTS = [
+        { id: "visual-purple", label: "紫调", group: "visual", matchTags: [] },
+        { id: "visual-red", label: "红调", group: "visual", matchTags: [] },
+        { id: "visual-blue", label: "蓝调", group: "visual", matchTags: [] },
+        { id: "visual-green", label: "绿调", group: "visual", matchTags: [] },
+        { id: "visual-white", label: "留白", group: "visual", matchTags: [] },
+        { id: "visual-dark", label: "暗调", group: "visual", matchTags: [] },
+        { id: "visual-bright", label: "亮调", group: "visual", matchTags: [] },
+        { id: "visual-close", label: "怼脸", group: "visual", matchTags: [] },
+        { id: "visual-portrait", label: "正脸", group: "visual", matchTags: [] },
+        { id: "visual-side", label: "侧脸", group: "visual", matchTags: [] },
+        { id: "visual-typography", label: "字多", group: "visual", matchTags: [] },
+        { id: "visual-minimal", label: "极简", group: "visual", matchTags: [] },
+        { id: "visual-full", label: "塞满", group: "visual", matchTags: [] },
+        { id: "visual-collage", label: "拼贴", group: "visual", matchTags: [] },
+        { id: "visual-magazine", label: "杂志感", group: "visual", matchTags: [] },
+        { id: "visual-film", label: "电影感", group: "visual", matchTags: [] },
+        { id: "visual-old-photo", label: "旧照片", group: "visual", matchTags: [] },
+        { id: "visual-sky", label: "有天空", group: "visual", matchTags: [] },
+        { id: "visual-room", label: "室内感", group: "visual", matchTags: [] },
+        { id: "visual-fashion", label: "大片感", group: "visual", matchTags: [] }
+      ];
+
+      const MOOD_PROMPTS = [
+        { id: "mood-summer", label: "夏夜", group: "mood", matchTags: [] },
+        { id: "mood-spring", label: "初春", group: "mood", matchTags: [] },
+        { id: "mood-autumn", label: "秋天感", group: "mood", matchTags: [] },
+        { id: "mood-rain", label: "雨天", group: "mood", matchTags: [] },
+        { id: "mood-midnight", label: "深夜", group: "mood", matchTags: [] },
+        { id: "mood-commute", label: "走路听", group: "mood", matchTags: [] },
+        { id: "mood-daydream", label: "放空", group: "mood", matchTags: [] },
+        { id: "mood-lonely", label: "微孤单", group: "mood", matchTags: [] },
+        { id: "mood-main-character", label: "主角感", group: "mood", matchTags: [] },
+        { id: "mood-float", label: "悬浮感", group: "mood", matchTags: [] }
+      ];
+
+      const CULTURE_PROMPTS = [
+        { id: "culture-2010s", label: "2010s", group: "culture", matchTags: [] },
+        { id: "culture-tumblr", label: "Tumblr 感", group: "culture", matchTags: [] },
+        { id: "culture-bedroom", label: "bedroom playlist", group: "culture", matchTags: [] },
+        { id: "culture-know", label: "懂的都懂", group: "culture", matchTags: [] },
+        { id: "culture-headphones", label: "耳机加成", group: "culture", matchTags: [] },
+        { id: "culture-cover-story", label: "私藏神专", group: "culture", matchTags: [] }
+      ];
+
+      function pickUnique(list, count, randomFn = Math.random) {
+        return shuffleList(list, randomFn).slice(0, count);
+      }
+
+      function buildPromptDeck(randomFn = Math.random) {
+        return shuffleList(
+          [
+            ...pickUnique(VISUAL_PROMPTS, 14, randomFn),
+            ...pickUnique(MOOD_PROMPTS, 7, randomFn),
+            ...pickUnique(CULTURE_PROMPTS, 4, randomFn)
+          ],
+          randomFn
+        );
+      }
+
+      const MOCK_ALBUMS = [
+        {
+          id: "utopia",
+          title: "UTOPIA",
+          artist: "Travis Scott",
+          tags: ["dark", "portrait", "monochrome", "styled", "solo"],
+          palette: ["#13151d", "#494446", "#ffffff"]
+        },
+        {
+          id: "astroworld",
+          title: "ASTROWORLD",
+          artist: "Travis Scott",
+          tags: ["crowd", "gold", "warm", "group", "styled"],
+          palette: ["#cb7c23", "#5422ff", "#fcd34d"]
+        },
+        {
+          id: "hardstone",
+          title: "HARDSTONE PSYCHO",
+          artist: "Don Toliver",
+          tags: ["blue", "dark", "fashion", "styled", "solo"],
+          palette: ["#0b1b38", "#4dc3ff", "#dff7ff"]
+        },
+        {
+          id: "sos",
+          title: "SOS",
+          artist: "SZA",
+          tags: ["blue", "water", "ocean", "solo", "minimal"],
+          palette: ["#7aa6c6", "#b8d4e7", "#ffffff"]
+        },
+        {
+          id: "gnx",
+          title: "GNX",
+          artist: "Kendrick Lamar",
+          tags: ["car", "monochrome", "portrait", "blackwhite", "solo"],
+          palette: ["#121212", "#6a6a6a", "#f4f4f4"]
+        },
+        {
+          id: "blonde",
+          title: "Blonde",
+          artist: "Frank Ocean",
+          tags: ["portrait", "green", "closeup", "minimal", "solo"],
+          palette: ["#4e8a65", "#b6d7b7", "#e8fff0"]
+        },
+        {
+          id: "damn",
+          title: "DAMN.",
+          artist: "Kendrick Lamar",
+          tags: ["red", "portrait", "text", "solo", "sideface"],
+          palette: ["#6d0f15", "#c63232", "#f8d5cc"]
+        },
+        {
+          id: "igor",
+          title: "IGOR",
+          artist: "Tyler, The Creator",
+          tags: ["pink", "portrait", "closeup", "face", "solo"],
+          palette: ["#ff5aac", "#ff97d0", "#fff0f7"]
+        },
+        {
+          id: "heroes-villains",
+          title: "Heroes & Villains",
+          artist: "Metro Boomin",
+          tags: ["monochrome", "mask", "styled", "portrait", "dark"],
+          palette: ["#121212", "#585858", "#cfcfcf"]
+        },
+        {
+          id: "wlr",
+          title: "Whole Lotta Red",
+          artist: "Playboi Carti",
+          tags: ["red", "collage", "text", "group", "styled"],
+          palette: ["#5b0408", "#d10823", "#f5d3d6"]
+        },
+        {
+          id: "after-hours",
+          title: "After Hours",
+          artist: "The Weeknd",
+          tags: ["red", "portrait", "expression", "closeup", "solo"],
+          palette: ["#7a0718", "#dd274d", "#ffd6d9"]
+        },
+        {
+          id: "mbdtf",
+          title: "My Beautiful Dark Twisted Fantasy",
+          artist: "Kanye West",
+          tags: ["red", "illustration", "frame", "museum", "styled"],
+          palette: ["#b60f29", "#f45d43", "#fff0d4"]
+        },
+        {
+          id: "rodeo",
+          title: "Rodeo",
+          artist: "Travis Scott",
+          tags: ["brown", "floating", "sky", "warm", "solo"],
+          palette: ["#5b4334", "#c6a07c", "#f5e5cf"]
+        },
+        {
+          id: "views",
+          title: "Views",
+          artist: "Drake",
+          tags: ["city", "skyline", "sky", "minimal", "solo"],
+          palette: ["#dbc8a9", "#8e6e49", "#f8f0df"]
+        },
+        {
+          id: "scorpion",
+          title: "Scorpion",
+          artist: "Drake",
+          tags: ["monochrome", "portrait", "sideface", "blackwhite", "solo"],
+          palette: ["#0d0d0d", "#666666", "#f1f1f1"]
+        },
+        {
+          id: "graduation",
+          title: "Graduation",
+          artist: "Kanye West",
+          tags: ["illustration", "cartoon", "sky", "yellow", "bright"],
+          palette: ["#1e72ff", "#ff9a00", "#ffe070"]
+        },
+        {
+          id: "cmiygl",
+          title: "CALL ME IF YOU GET LOST",
+          artist: "Tyler, The Creator",
+          tags: ["blue", "text", "passport", "minimal", "white"],
+          palette: ["#dbe6f2", "#7f9cbc", "#1f4268"]
+        },
+        {
+          id: "mr-morale",
+          title: "Mr. Morale & The Big Steppers",
+          artist: "Kendrick Lamar",
+          tags: ["family", "crown", "room", "brown", "group"],
+          palette: ["#5b412d", "#c9a88d", "#f7f0e8"]
+        },
+        {
+          id: "eternal-atake",
+          title: "Eternal Atake",
+          artist: "Lil Uzi Vert",
+          tags: ["purple", "space", "illustration", "styled", "solo"],
+          palette: ["#4517af", "#9d4dff", "#efe4ff"]
+        },
+        {
+          id: "take-care",
+          title: "Take Care",
+          artist: "Drake",
+          tags: ["gold", "luxury", "portrait", "room", "solo"],
+          palette: ["#291d16", "#8f6e45", "#f0d7a5"]
+        },
+        {
+          id: "starboy",
+          title: "Starboy",
+          artist: "The Weeknd",
+          tags: ["red", "blue", "portrait", "dark", "solo"],
+          palette: ["#0d2357", "#c2253d", "#f6dfd8"]
+        },
+        {
+          id: "tlop",
+          title: "The Life of Pablo",
+          artist: "Kanye West",
+          tags: ["orange", "text", "collage", "group", "warm"],
+          palette: ["#f57c00", "#ffb300", "#2e1b1b"]
+        },
+        {
+          id: "flower-boy",
+          title: "Flower Boy",
+          artist: "Tyler, The Creator",
+          tags: ["yellow", "illustration", "sky", "landscape", "solo"],
+          palette: ["#ffd84e", "#ff9e3d", "#effad8"]
+        },
+        {
+          id: "melodic-blue",
+          title: "The Melodic Blue",
+          artist: "Baby Keem",
+          tags: ["blue", "water", "portrait", "minimal", "solo"],
+          palette: ["#274fff", "#59aef7", "#ebf7ff"]
+        },
+        {
+          id: "for-all-the-dogs",
+          title: "For All The Dogs",
+          artist: "Drake",
+          tags: ["drawing", "white", "minimal", "illustration", "solo"],
+          palette: ["#f6f6f6", "#cccccc", "#000000"]
+        }
+      ].map((album) => ({
+        ...album,
+        cover: "",
+        fallbackCover: createFallbackCover(album.title, album.artist, album.palette)
+      }));
+
+      const LOCAL_TAG_LOOKUP = new Map(
+        MOCK_ALBUMS.map((album) => [normalizeToken(album.title), album.tags])
+      );
+
+      const API_CONFIG = {
+        enabled: true,
+        provider: "itunes",
+        endpoint: "http://127.0.0.1:3000/search",
+        queryParam: "keywords",
+        extraParams: {
+          type: 10
+        },
+        headers: {},
+        extractItems(payload) {
+          if (Array.isArray(payload?.body?.result?.albums)) {
+            return payload.body.result.albums;
+          }
+
+          if (Array.isArray(payload?.result?.albums)) {
+            return payload.result.albums;
+          }
+
+          if (Array.isArray(payload?.albums)) {
+            return payload.albums;
+          }
+
+          if (Array.isArray(payload)) {
+            return payload;
+          }
+
+          if (Array.isArray(payload?.results)) {
+            return payload.results;
+          }
+
+          return [];
+        }
+      };
+
+      function normalizeAlbum(source) {
+        const fallbackTags =
+          LOCAL_TAG_LOOKUP.get(
+            normalizeToken(source.title ?? source.name ?? source.collectionName)
+          ) ?? [];
+        const artistNames = Array.isArray(source.artists)
+          ? source.artists.map((artist) => artist?.name).filter(Boolean)
+          : Array.isArray(source.ar)
+            ? source.ar.map((artist) => artist?.name).filter(Boolean)
+            : [];
+        const derivedArtist = [
+          source.artistName,
+          typeof source.artist === "string" ? source.artist : "",
+          source.artist?.name,
+          artistNames.join(", ")
+        ].find((value) => String(value ?? "").trim());
+
+        return {
+          id: String(
+            source.id ??
+              source.albumId ??
+              source.collectionId ??
+              source.title ??
+              source.name ??
+              source.collectionName
+          ),
+          title: source.title ?? source.name ?? source.collectionName ?? "Unknown Album",
+          artist: derivedArtist || "Unknown Artist",
+          cover:
+            toLargeArtworkUrl(
+              source.cover ??
+                source.cover_url ??
+                source.artwork ??
+                source.artworkUrl100 ??
+                source.artworkUrl60 ??
+                source.artworkUrl30 ??
+                source.picUrl ??
+                source.blurPicUrl ??
+                ""
+            ) || "",
+          fallbackCover: "",
+          tags: uniqueList(
+            (Array.isArray(source.tags) ? source.tags : fallbackTags).map((tag) =>
+              normalizeToken(tag)
+            )
+          )
+        };
+      }
+
+      function normalizeItunesArtist(source) {
+        return {
+          artistId: String(source.artistId ?? source.amgArtistId ?? source.id ?? ""),
+          artistName: String(source.artistName ?? source.name ?? "").trim()
+        };
+      }
+
+      function findBestItunesArtistMatch(query, artists) {
+        const normalizedQuery = normalizeComparableText(query);
+        const normalizedArtists = artists
+          .map(normalizeItunesArtist)
+          .filter((artist) => artist.artistId && artist.artistName);
+
+        return (
+          normalizedArtists.find(
+            (artist) => normalizeComparableText(artist.artistName) === normalizedQuery
+          ) ??
+          normalizedArtists.find((artist) =>
+            normalizeComparableText(artist.artistName).includes(normalizedQuery)
+          ) ??
+          null
+        );
+      }
+
+      function getAlbumDedupeKey(album) {
+        return `${normalizeComparableText(album.title)}::${normalizeComparableText(album.artist)}`;
+      }
+
+      function mergeAndRankItunesAlbums(
+        query,
+        { searchResults = [], artistAlbums = [] } = {}
+      ) {
+        const normalizedQuery = normalizeComparableText(query);
+        const seen = new Set();
+        const combined = [...artistAlbums, ...searchResults].filter((album) => {
+          const key = getAlbumDedupeKey(album);
+          if (!key || seen.has(key)) {
+            return false;
+          }
+
+          seen.add(key);
+          return true;
+        });
+
+        return combined.sort((left, right) => {
+          function getScore(album, index) {
+            const normalizedArtist = normalizeComparableText(album.artist);
+            const normalizedTitle = normalizeComparableText(album.title);
+            const artistExact = normalizedArtist === normalizedQuery ? 100 : 0;
+            const titleExact = normalizedTitle === normalizedQuery ? 50 : 0;
+            const titleContains = normalizedTitle.includes(normalizedQuery) ? 20 : 0;
+            const artistContains = normalizedArtist.includes(normalizedQuery) ? 12 : 0;
+            const lookupBoost = index < artistAlbums.length ? 18 : 0;
+
+            return (
+              artistExact +
+              titleExact +
+              titleContains +
+              artistContains +
+              lookupBoost
+            );
+          }
+
+          const leftIndex = combined.indexOf(left);
+          const rightIndex = combined.indexOf(right);
+          const scoreDifference = getScore(right, rightIndex) - getScore(left, leftIndex);
+
+          if (scoreDifference !== 0) {
+            return scoreDifference;
+          }
+
+          return leftIndex - rightIndex;
+        });
+      }
+
+      function clueMatchesAlbum(clueTags, albumTags) {
+        const normalizedClues = clueTags.map(normalizeToken);
+        const normalizedAlbumTags = albumTags.map(normalizeToken);
+        return normalizedClues.some((tag) => normalizedAlbumTags.includes(tag));
+      }
+
+      function shuffleList(list, randomFn = Math.random) {
+        const copy = [...list];
+        for (let index = copy.length - 1; index > 0; index -= 1) {
+          const nextIndex = Math.floor(randomFn() * (index + 1));
+          [copy[index], copy[nextIndex]] = [copy[nextIndex], copy[index]];
+        }
+        return copy;
+      }
+
+      function buildBoard(clues, size = BOARD_SIZE, randomFn = Math.random) {
+        return shuffleList(clues, randomFn)
+          .slice(0, size * size)
+          .map((clue, index) => ({
+            index,
+            clue,
+            placedAlbum: null,
+            locked: false,
+            isRejected: false
+          }));
+      }
+
+      function getLineIndexes(size = BOARD_SIZE) {
+        const lines = [];
+
+        for (let row = 0; row < size; row += 1) {
+          lines.push(Array.from({ length: size }, (_, col) => row * size + col));
+        }
+
+        for (let col = 0; col < size; col += 1) {
+          lines.push(Array.from({ length: size }, (_, row) => row * size + col));
+        }
+
+        lines.push(Array.from({ length: size }, (_, step) => step * (size + 1)));
+        lines.push(
+          Array.from({ length: size }, (_, step) => (step + 1) * (size - 1))
+        );
+
+        return lines;
+      }
+
+      function findCompletedLines(cells, size = BOARD_SIZE) {
+        return getLineIndexes(size).filter((line) =>
+          line.every((index) => cells[index]?.locked)
+        );
+      }
+
+      async function searchAlbumsMock(query, albums = MOCK_ALBUMS) {
+        const normalizedQuery = normalizeToken(query);
+
+        if (!normalizedQuery) {
+          return [];
+        }
+
+        return albums.filter((album) => {
+          const haystack = [album.title, album.artist, ...(album.tags ?? [])]
+            .map(normalizeToken)
+            .join(" ");
+
+          return haystack.includes(normalizedQuery);
+        });
+      }
+
+      async function searchAlbumsApi(query) {
+        const normalizedQuery = normalizeToken(query);
+
+        if (!normalizedQuery) {
+          return [];
+        }
+
+        if (API_CONFIG.provider === "itunes") {
+          const searchPayload = await fetchJsonp(buildItunesSearchUrl(query, 30));
+          const searchResults = (searchPayload?.results ?? []).map(normalizeAlbum);
+          const artistPayload = await fetchJsonp(
+            buildItunesSearchUrl(query, 5, "musicArtist")
+          );
+          const bestArtist = findBestItunesArtistMatch(
+            query,
+            artistPayload?.results ?? []
+          );
+          let artistAlbums = [];
+
+          if (bestArtist?.artistId) {
+            const lookupPayload = await fetchJsonp(
+              buildItunesLookupUrl(bestArtist.artistId, 30)
+            );
+            artistAlbums = (lookupPayload?.results ?? [])
+              .filter((item) => {
+                const wrapperType = normalizeToken(item?.wrapperType);
+                const collectionType = normalizeToken(item?.collectionType);
+
+                return wrapperType === "collection" && collectionType === "album";
+              })
+              .map(normalizeAlbum)
+              .filter(
+                (album) =>
+                  normalizeComparableText(album.artist) ===
+                  normalizeComparableText(bestArtist.artistName)
+              );
+          }
+
+          return mergeAndRankItunesAlbums(query, {
+            searchResults,
+            artistAlbums
+          });
+        }
+
+        if (!API_CONFIG.endpoint) {
+          return [];
+        }
+
+        const url = new URL(API_CONFIG.endpoint);
+        url.searchParams.set(API_CONFIG.queryParam, query);
+        Object.entries(API_CONFIG.extraParams ?? {}).forEach(([key, value]) => {
+          url.searchParams.set(key, String(value));
+        });
+
+        const response = await fetch(url.toString(), {
+          method: "GET",
+          headers: API_CONFIG.headers
+        });
+
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+
+        const payload = await response.json();
+        return API_CONFIG.extractItems(payload).map(normalizeAlbum);
+      }
+
+      const hasDocument = typeof document !== "undefined";
+
+      function fetchJsonp(url, callbackParam = "callback") {
+        return new Promise((resolve, reject) => {
+          if (!hasDocument) {
+            reject(new Error("JSONP requires a browser document"));
+            return;
+          }
+
+          const callbackName = `__albumBingoJsonp_${Date.now()}_${Math.random()
+            .toString(36)
+            .slice(2)}`;
+          const script = document.createElement("script");
+          let timeoutId = 0;
+
+          function cleanup() {
+            if (timeoutId) {
+              window.clearTimeout(timeoutId);
+            }
+            delete window[callbackName];
+            script.remove();
+          }
+
+          window[callbackName] = (payload) => {
+            cleanup();
+            resolve(payload);
+          };
+
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("JSONP request failed"));
+          };
+
+          timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("JSONP request timed out"));
+          }, 8000);
+
+          script.src = `${url}${url.includes("?") ? "&" : "?"}${callbackParam}=${callbackName}`;
+          document.head.append(script);
+        });
+      }
+
+      function placeAlbumInCell(cell, album) {
+        if (!cell) {
+          return { accepted: false, reason: "missing-cell" };
+        }
+
+        return {
+          accepted: true,
+          updatedCell: {
+            ...cell,
+            placedAlbum: album,
+            locked: true,
+            isRejected: false
+          }
+        };
+      }
+
+      if (typeof globalThis !== "undefined") {
+        globalThis.__albumBingoTestApi = {
+          BOARD_SIZE,
+          createCoverDataUri,
+          toLargeArtworkUrl,
+          pickBestArtworkResult,
+          buildItunesSearchUrl,
+          buildItunesLookupUrl,
+          findBestItunesArtistMatch,
+          mergeAndRankItunesAlbums,
+          normalizeAlbum,
+          clueMatchesAlbum,
+          shuffleList,
+          buildPromptDeck,
+          buildBoard,
+          findCompletedLines,
+          searchAlbumsMock,
+          placeAlbumInCell
+        };
+      }
+
+      if (hasDocument) {
+        const state = {
+          board: buildBoard(buildPromptDeck(), BOARD_SIZE),
+          results: [],
+          status: DEFAULT_STATUS,
+          winningLines: [],
+          isBingo: false,
+          loading: false,
+          lastQuery: "",
+          activeCellIndex: null,
+          isSearchOpen: false
+        };
+
+        const boardElement = document.getElementById("bingo-board");
+        const statusBar = document.getElementById("status-bar");
+        const resultsGrid = document.getElementById("results-grid");
+        const emptyState = document.getElementById("empty-state");
+        const resultCount = document.getElementById("result-count");
+        const bingoBanner = document.getElementById("bingo-banner");
+        const backgroundCollage = document.getElementById("background-collage");
+        const searchForm = document.getElementById("search-form");
+        const searchInput = document.getElementById("search-input");
+        const restartButton = document.getElementById("restart-button");
+        const randomizeButton = document.getElementById("randomize-button");
+        const searchModal = document.getElementById("search-modal");
+        const searchClose = document.getElementById("search-close");
+        const activePromptPill = document.getElementById("active-prompt-pill");
+
+        function getAlbumById(albumId) {
+          return (
+            state.results.find((album) => album.id === albumId) ??
+            MOCK_ALBUMS.find((album) => album.id === albumId) ??
+            null
+          );
+        }
+
+        function getActiveCell() {
+          return state.activeCellIndex === null ? null : state.board[state.activeCellIndex];
+        }
+
+        function renderBackground() {
+          backgroundCollage.innerHTML = shuffleList(MOCK_ALBUMS)
+            .slice(0, 18)
+            .map(
+              (album) => `
+                <div class="background-cover">
+                  <img src="${escapeHtml(album.cover || album.fallbackCover)}" alt="${escapeHtml(album.title)} cover background" />
+                </div>
+              `
+            )
+            .join("");
+        }
+
+        function renderBoard() {
+          const winningIndexes = new Set(state.winningLines.flat());
+
+          boardElement.innerHTML = state.board
+            .map((cell) => {
+              const isWinning = winningIndexes.has(cell.index);
+              const isActive = state.activeCellIndex === cell.index;
+              const classes = [
+                "board-cell",
+                cell.locked ? "is-filled" : "",
+                isWinning ? "is-winning" : "",
+                isActive ? "is-active" : ""
+              ]
+                .filter(Boolean)
+                .join(" ");
+              const clueLabel = escapeHtml(cell.clue.label);
+
+              if (cell.locked && cell.placedAlbum) {
+                const cover = escapeHtml(
+                  cell.placedAlbum.cover ||
+                    cell.placedAlbum.fallbackCover ||
+                    createFallbackCover(cell.placedAlbum.title, cell.placedAlbum.artist)
+                );
+                const albumTitle = escapeHtml(cell.placedAlbum.title);
+                const albumArtist = escapeHtml(cell.placedAlbum.artist);
+
+                return `
+                  <div
+                    class="${classes}"
+                    data-index="${cell.index}"
+                    role="button"
+                    tabindex="0"
+                    aria-label="线索 ${clueLabel}，已放入 ${albumTitle}，点击更换"
+                  >
+                    <div class="placed-cover">
+                      <img src="${cover}" alt="${albumTitle} cover" />
+                      <div class="placed-overlay"></div>
+                      <button class="cell-clear" type="button" data-clear-index="${cell.index}" aria-label="清除这个格子">
+                        ×
+                      </button>
+                      <div class="placed-meta">
+                        <small>${clueLabel}</small>
+                        <strong>${albumTitle}</strong>
+                        <span>${albumArtist}</span>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }
+
+              return `
+                <div
+                  class="${classes}"
+                  data-index="${cell.index}"
+                  role="button"
+                  tabindex="0"
+                  aria-label="线索 ${clueLabel}，点击搜索专辑"
+                >
+                  <div class="clue-content">
+                    <span class="clue-label">${clueLabel}</span>
+                    <span class="clue-hint">点击搜索</span>
+                  </div>
+                </div>
+              `;
+            })
+            .join("");
+        }
+
+        function renderResults() {
+          resultCount.textContent = state.loading
+            ? "搜索中..."
+            : state.lastQuery
+              ? `${state.results.length} 张结果`
+              : "";
+
+          if (!state.results.length && !state.loading) {
+            resultsGrid.innerHTML = "";
+            emptyState.hidden = false;
+            emptyState.textContent = state.lastQuery
+              ? "没有搜到结果。换个专辑名、歌手名，或者换个关键词试试。"
+              : "先给当前这个格子搜一张你想到的专辑。";
+            return;
+          }
+
+          emptyState.hidden = true;
+
+          resultsGrid.innerHTML = state.results
+            .map((album) => {
+              const cover = escapeHtml(
+                album.cover ||
+                  album.fallbackCover ||
+                  createFallbackCover(album.title, album.artist)
+              );
+              const title = escapeHtml(album.title);
+              const artist = escapeHtml(album.artist);
+
+              return `
+                <button
+                  class="result-card"
+                  type="button"
+                  data-album-id="${escapeHtml(album.id)}"
+                  aria-label="${title} by ${artist}"
+                >
+                  <img src="${cover}" alt="${title} cover" />
+                  <div>
+                    <strong>${title}</strong>
+                    <span>${artist}</span>
+                  </div>
+                </button>
+              `;
+            })
+            .join("");
+        }
+
+        function renderStatus() {
+          statusBar.textContent = state.status;
+          bingoBanner.hidden = !state.isBingo;
+        }
+
+        function renderSearchModal() {
+          const activeCell = getActiveCell();
+          searchModal.hidden = !state.isSearchOpen;
+          searchModal.setAttribute("aria-hidden", String(!state.isSearchOpen));
+          document.body.classList.toggle("modal-open", state.isSearchOpen);
+
+          activePromptPill.innerHTML = activeCell
+            ? `当前格子：<strong>${escapeHtml(activeCell.clue.label)}</strong>`
+            : "当前格子：<strong>请选择一个提示词格子</strong>";
+        }
+
+        function render() {
+          renderBoard();
+          renderResults();
+          renderStatus();
+          renderSearchModal();
+        }
+
+        function updateBingoState() {
+          state.winningLines = findCompletedLines(state.board, BOARD_SIZE);
+          state.isBingo = state.winningLines.length > 0;
+        }
+
+        function closeSearchModal() {
+          state.isSearchOpen = false;
+          state.activeCellIndex = null;
+          render();
+        }
+
+        function openSearchModal(index) {
+          const cell = state.board[index];
+          if (!cell) {
+            return;
+          }
+
+          state.activeCellIndex = index;
+          state.isSearchOpen = true;
+          state.status = `正在为「${cell.clue.label}」挑专辑。`;
+          render();
+          window.setTimeout(() => searchInput.focus(), 10);
+        }
+
+        function applyAlbumToCell(index, album) {
+          const cell = state.board[index];
+          const hadAlbum = Boolean(cell?.placedAlbum);
+          const placement = placeAlbumInCell(cell, album);
+
+          if (!placement.accepted) {
+            state.status = "这个格子暂时无法放置。";
+            renderStatus();
+            return;
+          }
+
+          state.board = state.board.map((entry) =>
+            entry.index === index ? placement.updatedCell : entry
+          );
+          updateBingoState();
+          state.status = hadAlbum
+            ? `已把「${cell.clue.label}」换成 “${album.title}”。`
+            : `已把 “${album.title}” 放进「${cell.clue.label}」。`;
+
+          if (state.isBingo) {
+            state.status = `BINGO! 你连成线了。最后放进去的是 “${album.title}”。`;
+          }
+
+          closeSearchModal();
+        }
+
+        async function runSearch(query) {
+          const trimmedQuery = query.trim();
+          state.lastQuery = trimmedQuery;
+
+          if (!trimmedQuery) {
+            state.results = [];
+            state.loading = false;
+            state.status = DEFAULT_STATUS;
+            render();
+            return;
+          }
+
+          state.loading = true;
+          state.status = `正在搜索 “${trimmedQuery}”...`;
+          render();
+
+          try {
+            const results = API_CONFIG.enabled
+              ? await searchAlbumsApi(trimmedQuery)
+              : await searchAlbumsMock(trimmedQuery);
+
+            state.results = results.map((album) => ({
+              ...album,
+              cover: album.cover || "",
+              fallbackCover:
+                album.fallbackCover ||
+                createFallbackCover(album.title, album.artist)
+            }));
+            state.status = `已返回 ${state.results.length} 张和 “${trimmedQuery}” 相关的专辑。`;
+          } catch (error) {
+            state.results = [];
+            state.status = "搜索暂时失败了，稍后再试一次。";
+            console.error(error);
+          } finally {
+            state.loading = false;
+            render();
+          }
+        }
+
+        function clearCell(index) {
+          state.board = state.board.map((cell) =>
+            cell.index === index
+              ? { ...cell, locked: false, placedAlbum: null, isRejected: false }
+              : cell
+          );
+          updateBingoState();
+          state.status = "已移除这个格子的封面。";
+          render();
+        }
+
+        function resetBoard({ randomize } = { randomize: false }) {
+          state.board = randomize
+            ? buildBoard(buildPromptDeck(), BOARD_SIZE)
+            : state.board.map((cell) => ({
+                ...cell,
+                locked: false,
+                placedAlbum: null,
+                isRejected: false
+              }));
+          state.winningLines = [];
+          state.isBingo = false;
+          state.activeCellIndex = null;
+          state.isSearchOpen = false;
+          state.status = randomize
+            ? "已换一组新的提示词。"
+            : "棋盘已清空，可以重新开始。";
+          render();
+        }
+
+        searchForm.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          await runSearch(searchInput.value);
+        });
+
+        restartButton.addEventListener("click", () => {
+          resetBoard({ randomize: false });
+        });
+
+        randomizeButton.addEventListener("click", () => {
+          resetBoard({ randomize: true });
+        });
+
+        searchClose.addEventListener("click", () => {
+          closeSearchModal();
+        });
+
+        searchModal.addEventListener("click", (event) => {
+          const eventTarget = event.target instanceof Element ? event.target : null;
+          const shouldClose = eventTarget?.closest("[data-close-modal]");
+          if (shouldClose) {
+            closeSearchModal();
+          }
+        });
+
+        boardElement.addEventListener("click", (event) => {
+          const eventTarget = event.target instanceof Element ? event.target : null;
+          const clearButton = eventTarget?.closest("[data-clear-index]");
+          if (clearButton) {
+            clearCell(Number(clearButton.dataset.clearIndex));
+            return;
+          }
+
+          const targetCell = eventTarget?.closest("[data-index]");
+          if (!targetCell) {
+            return;
+          }
+
+          openSearchModal(Number(targetCell.dataset.index));
+        });
+
+        boardElement.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") {
+            return;
+          }
+
+          const eventTarget = event.target instanceof Element ? event.target : null;
+          const targetCell = eventTarget?.closest("[data-index]");
+          if (!targetCell) {
+            return;
+          }
+
+          event.preventDefault();
+          openSearchModal(Number(targetCell.dataset.index));
+        });
+
+        resultsGrid.addEventListener("click", (event) => {
+          const eventTarget = event.target instanceof Element ? event.target : null;
+          const card = eventTarget?.closest("[data-album-id]");
+          if (!card || state.activeCellIndex === null) {
+            return;
+          }
+
+          const album = getAlbumById(card.dataset.albumId);
+          if (!album) {
+            return;
+          }
+
+          applyAlbumToCell(state.activeCellIndex, album);
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && state.isSearchOpen) {
+            closeSearchModal();
+          }
+        });
+
+        renderBackground();
+        render();
+      }
+    </script>
+  </body>
+</html>
