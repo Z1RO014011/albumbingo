@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
+function loadHtml() {
+  return fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
+}
+
 function loadTestApi() {
-  const html = fs.readFileSync(
-    new URL("../index.html", import.meta.url),
-    "utf8"
-  );
+  const html = loadHtml();
   const scriptMatch = html.match(/<script>([\s\S]*)<\/script>\s*<\/body>/);
 
   if (!scriptMatch) {
@@ -26,6 +27,12 @@ function loadTestApi() {
 
   return context.globalThis.__albumBingoTestApi;
 }
+
+test("index includes the ICP filing number in the footer", () => {
+  const html = loadHtml();
+
+  assert.match(html, /蒙ICP备2026005946号/);
+});
 
 test("clueMatchesAlbum matches overlapping tags", () => {
   const api = loadTestApi();
